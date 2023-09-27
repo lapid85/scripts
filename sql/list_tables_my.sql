@@ -11,4 +11,4 @@ SELECT
 FROM
     information_schema.COLUMNS
 WHERE
-    TABLE_SCHEMA = '';
+    TABLE_SCHEMA = 'integrated_platforms_v5' AND TABLE_NAME <> 'all_tables';
