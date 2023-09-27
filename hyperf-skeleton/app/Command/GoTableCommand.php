@@ -7,10 +7,15 @@ namespace App\Command;
 use Hyperf\Command\Command as HyperfCommand;
 use Hyperf\Command\Annotation\Command;
 use Psr\Container\ContainerInterface;
+use Hyperf\DbConnection\Db;
+
+
+const DATABASE = 'integrated_platforms_v5';
 
 #[Command]
 class GoTableCommand extends HyperfCommand
 {
+
     public function __construct(protected ContainerInterface $container)
     {
         parent::__construct('gen:go-tables');
@@ -24,6 +29,10 @@ class GoTableCommand extends HyperfCommand
 
     public function handle()
     {
-        $this->line('Hello Hyperf!', 'info');
+        $rows = Db::table('all_tables')->get();
+        foreach ($rows as $r) {
+            print_r($r);
+        }
+        // $this->line('Hello Hyperf!', 'info');
     }
 }
