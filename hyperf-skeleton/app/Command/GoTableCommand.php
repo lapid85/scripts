@@ -165,6 +165,8 @@ class GoTableCommand extends HyperfCommand
             "// 判断是否有排序\n".
             "\t if len(args) > 2 {\n".
             "\t\t db = db.Order(args[2].(string))\n".
+            "\t } else {\n".
+            "\t\t db = db.Order(\"id desc\")\n".
             "\t }\n".
             "\t result := db.Find(&rows)\n".
             "\t if result.Error != nil {\n".
