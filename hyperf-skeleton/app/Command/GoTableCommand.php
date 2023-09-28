@@ -93,21 +93,56 @@ class GoTableCommand extends HyperfCommand
         $fileContent = "package tables\n\n";
         $fileContent .= "import (\n".
             "\t\"gorm.io/gorm\"\n".
-            "\t\"gorm.io/driver/mysql\"\n". 
             ")\n\n";
+        //"\t\"gorm.io/driver/mysql\"\n". 
         $fileContent .= "// {$structName} 数据表名: {$tableName} \n";
         $fileContent .= "type {$structName} struct {\n";
+
+        $fields = [];
+        $hasCreated = false;
+        $hasUpdated = false;
 
         foreach ($rows as $row) {
             $fileContent .= "\t{$this->goField($row->field_name)} ".
             "{$this->goType($row->field_type)} ".
             "`gorm:\"{$this->goColumn($row->field_name)}\" json:\"{$row->field_name}\"`". 
             "\t// {$this->goComment($row->field_name, $row->field_comment)}\n";
+
+            $fields[] = '"'. $row->field_name. '"';
+            if ($row->field_name == 'created') {
+                $hasCreated = true;
+            }
+            if ($row->field_name == 'updated') {
+                $hasUpdated = true;
+            }
         }
 
-        $fileContent .= "\tgorm.Model `json:\"-\"`\n";
+        //$fileContent .= "\tgorm.Model `json:\"-\"`\n";
         $fileContent .= "}\n\n";
 
+        $varName = Str::studly(Str::camel($tableName));
+        $fileContent .= "// {$varName} Instance\n";
+        $fileContent .= "var {$varName} = {$structName}{}\n\n";
+        // TableName
+        $fileContent .= "// TableName 获取表名\n";
+        $fileContent .= "func (ths *{$structName}) TableName() string {\n".
+            "\t return \"{$tableName}\"\n".
+            "}\n\n";
+        // Fields
+        $fileContent .= "// Fields 获取所有字段\n";
+        $fileContent .= "func (ths *{$structName}) Fields() []string {\n".
+            "\t return []string{\n\t\t". implode(",\n\t\t", $fields) . ",\n\t}\n".
+            "}\n\n";
+        // HasCreated
+        $fileContent .= "// HasCreated 是否包含创建时间\n";
+        $fileContent .= "func (ths *{$structName}) HasCreated() bool {\n".
+            "\t return ". ($hasCreated ? 'true' : 'false') . "\n".
+            "}\n\n";
+        // HasUpdated
+        $fileContent .= "// HasUpdated 是否包含更新时间\n";
+        $fileContent .= "func (ths *{$structName}) HasUpdated() bool {\n".
+            "\t return ". ($hasUpdated ? 'true' : 'false') . "\n".
+            "}\n\n";
         // GetAll
         $fileContent .= "// GetAll 获取所有记录 参数: 连接对象/条件:map[string]interface{}/限制: [10:limit, 2:page]/排序:'id desc'\n";
         $fileContent .= "func (ths *{$structName}) GetAll(db *gorm.DB, args ...interface{}) (interface{}, int64, error) {\n".
