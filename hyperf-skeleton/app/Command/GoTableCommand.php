@@ -93,6 +93,7 @@ class GoTableCommand extends HyperfCommand
         $fileContent = "package tables\n\n";
         $fileContent .= "import (\n".
             "\t\"gorm.io/gorm\"\n".
+            "\t\"common/utils\"\n".
             ")\n\n";
         //"\t\"gorm.io/driver/mysql\"\n". 
         $fileContent .= "// {$structName} 数据表名: {$tableName} \n";
@@ -148,11 +149,11 @@ class GoTableCommand extends HyperfCommand
         $fileContent .= "func (ths *{$structName}) GetAll(db *gorm.DB, args ...interface{}) (interface{}, int64, error) {\n".
             "\t var rows = []{$structName}{}\n".
             "\t // var count int64 = 0\n".
-            "// 判断是否有查询条件\n".
+            "// 判断是否有查询条件 如:map[string]interface{}{\"age\":19}\n".
             "\t if len(args) > 0 {\n".
             "\t\t db = db.Where(args[0])\n".
             "\t }\n".
-            "// 判断是否有 [limit, page] \n".
+            "// 判断是否有限制 如:[limit, page] \n".
             "\t if len(args) > 1 {\n".
             "\t\t limiter := args[1].([]int)\n".
             "\t\t if len(limiter) > 0 {\n".
@@ -162,17 +163,75 @@ class GoTableCommand extends HyperfCommand
             "\t\t\t }\n".
             "\t\t }\n".
             "\t }\n".
-            "// 判断是否有排序\n".
+            "// 判断是否有排序 如: sort DESC\n".
             "\t if len(args) > 2 {\n".
             "\t\t db = db.Order(args[2].(string))\n".
             "\t } else {\n".
-            "\t\t db = db.Order(\"id desc\")\n".
+            "\t\t db = db.Order(\"id DESC\")\n".
             "\t }\n".
             "\t result := db.Find(&rows)\n".
             "\t if result.Error != nil {\n".
             "\t\t return nil, 0, result.Error\n".
             "\t }\n".
             "\t\t return rows, result.RowsAffected, nil\n".
+            "}\n\n";
+        // Get
+        $fileContent .= "// Get 获取单条记录 参数: 连接对象/条件:map[string]interface{}\n";
+        $fileContent .= "func (ths *{$structName}) Get(db *gorm.DB, args ...interface{}) (interface{}, error) {\n".
+            "\t var row = {$structName}{}\n".
+            "\t // var count int64 = 0\n".
+            "// 判断是否有查询条件 如:map[string]interface{}{\"age\":19}\n".
+            "\t if len(args) > 0 {\n".
+            "\t\t db = db.Where(args[0])\n".
+            "\t }\n".
+            "// 判断是否有排序 如: sort DESC\n".
+            "\t if len(args) > 1 {\n".
+            "\t\t db = db.Order(args[1].(string))\n".
+            "\t } \n".
+            "\t result := db.First(&row)\n".
+            "\t if result.Error != nil {\n".
+            "\t\t return nil, result.Error\n".
+            "\t }\n".
+            "\t\t return row, nil\n".
+            "}\n\n";
+        // Create
+        $fileContent .= "// Create 创建记录 参数: 连接对象/数据:map[string]interface{}\n";
+        $fileContent .= "func (ths *{$structName}) Create(db *gorm.DB, data map[string]interface{}) (interface{}, error) {\n".
+            "\t var row = {$structName}{}\n".
+            "if ths.HasCreated() {\n".
+            "\t data[\"created\"] = utils.NowMicro()\n".
+            "}\n".
+            "if ths.HasUpdated() {\n".
+            "\t data[\"updated\"] = utils.NowMicro()\n".
+            "}\n".
+            "\t result := db.Model(&{$structName}{}).Create(data)\n".
+            "\t if result.Error != nil {\n".
+            "\t\t return nil, result.Error\n".
+            "\t }\n".
+            "\t\t return row, nil\n".
+            "}\n\n";
+        // Update
+        $fileContent .= "// Update 更新记录 参数: 连接对象/条件:map[string]interface{}/数据:map[string]interface{}\n";
+        $fileContent .= "func (ths *{$structName}) Update(db *gorm.DB, data map[string]interface{}, cond map[string]interface{}) (interface{}, error) {\n".
+            "\t var row = {$structName}{}\n".
+            "if ths.HasUpdated() {\n".
+            "\t data[\"updated\"] = utils.NowMicro()\n".
+            "}\n".
+            "\t result := db.Model(&{$structName}{}).Where(cond).Updates(data)\n".
+            "\t if result.Error != nil {\n".
+            "\t\t return nil, result.Error\n".
+            "\t }\n".
+            "\t\t return row, nil\n".
+            "}\n\n";
+        // Delete
+        $fileContent .= "// Delete 删除记录 参数: 连接对象/条件:map[string]interface{}\n";
+        $fileContent .= "func (ths *{$structName}) Delete(db *gorm.DB, cond map[string]interface{}) (interface{}, error) {\n".
+            "\t var row = {$structName}{}\n".
+            "\t result := db.Model(&{$structName}{}).Where(cond).Delete(&row)\n".
+            "\t if result.Error != nil {\n".
+            "\t\t return nil, result.Error\n".
+            "\t }\n".
+            "\t\t return row, nil\n".
             "}\n\n";
 
         // 保存文件
