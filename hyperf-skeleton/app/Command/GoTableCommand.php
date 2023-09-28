@@ -9,23 +9,22 @@ use Hyperf\Command\Annotation\Command;
 use Hyperf\Di\Annotation\Inject;
 use Psr\Container\ContainerInterface;
 use Hyperf\DbConnection\Db;
-use Hyperf\Contract\ConfigInterface ;
 use Hyperf\Utils\Str;
 
 #[Command]
 class GoTableCommand extends HyperfCommand
 {
-    #[Inject]
-    /**
-     * @var ConfigInterface
-     */
-    private $config;
 
+    #[Inject]
+    protected \Hyperf\Contract\ConfigInterface $config;
+
+    // 构造函数
     public function __construct(protected ContainerInterface $container)
     {
         parent::__construct('gen:go-tables');
     }
 
+    // 配置
     public function configure()
     {
         parent::configure();
@@ -33,7 +32,7 @@ class GoTableCommand extends HyperfCommand
     }
 
     // 转换为 go 的类型
-    public function goType(string $fileType): string {
+    private function goType(string $fileType): string {
         switch ($fileType) {
             case 'int':
             case 'tinyint':
@@ -59,7 +58,8 @@ class GoTableCommand extends HyperfCommand
         }
     }
 
-    public function goField(string $fieldName): string {
+    // 转换为 go 的字段名
+    private function goField(string $fieldName): string {
         if ($fieldName == 'id') {
             return 'ID';
         }
@@ -70,7 +70,7 @@ class GoTableCommand extends HyperfCommand
     }
 
     // 转换为 go 的注释
-    public function goComment(string $fieldName, string $fieldComment): string {
+    private function goComment(string $fieldName, string $fieldComment): string {
         if ($fieldName == 'id') {
             return 'ID';
         }
@@ -78,7 +78,7 @@ class GoTableCommand extends HyperfCommand
     }
 
     // 转换为 go 的 column
-    public function goColumn(string $fieldName): string {
+    private function goColumn(string $fieldName): string {
         if ($fieldName == 'id') {
             return 'column:id;primaryKey;autoIncrement';
         }
@@ -86,7 +86,7 @@ class GoTableCommand extends HyperfCommand
     }
 
     // 创建 go 的 table 文件
-    public function createGoTable(string $tableName)  { 
+    private function createGoTable(string $tableName)  { 
         $rows = Db::table('all_tables')->selectRaw('field_name, field_type, field_comment')->where('table_name', '=', $tableName)->get();
         $structName = Str::studly(Str::singular($tableName));
         $fileContent = "package tables\n\n";
@@ -114,24 +114,19 @@ class GoTableCommand extends HyperfCommand
         }
 
         $fileName = $savingPath . '/' . $structName . '.go';
-        echo '创建文件: ', $fileName . "\n";
+        echo 'Creating file name: ', $fileName . "\n";
         file_put_contents($fileName, $fileContent);
+        echo 'Formatting file name: ', $fileName . "\n";
+        exec('go fmt ' . $fileName);
     }
 
     // 处理
     public function handle()
     {
-        $conf = $this->config->get('databases');
-        if (!$conf) {
-            echo "databases config not found\n";
-            return;
-        }
-
         $rows = Db::table('all_tables')->selectRaw('DISTINCT(table_name) AS table_name')->get();
         foreach ($rows as $r) {
             $this->createGoTable($r->table_name);
         }
-
         // $this->line('Hello Hyperf!', 'info');
     }
 }

@@ -17,7 +17,8 @@ use function Hyperf\Support\env;
 return [
     'app_name' => env('APP_NAME', 'skeleton'),
     'app_env' => env('APP_ENV', 'dev'),
-    'go_table_path' => env('GO_TABLE_PATH', 'tables'),
+    'go_table_path' => env('GO_TABLE_PATH', 'go-tables'),
+    'go_model_path' => env('GO_MODEL_PATH', 'go-models'),
     'scan_cacheable' => env('SCAN_CACHEABLE', false),
     StdoutLoggerInterface::class => [
         'log_level' => [
