@@ -11,6 +11,7 @@ use Psr\Container\ContainerInterface;
 use Hyperf\DbConnection\Db;
 use Hyperf\Utils\Str;
 
+// 执行命令: php bin/hyperf.php gen:go-tables
 #[Command]
 class GoTableCommand extends HyperfCommand
 {
