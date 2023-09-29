@@ -90,7 +90,15 @@ class GoTableCommand extends HyperfCommand
     private function createGoTable(string $tableName)  { 
         $rows = Db::table('all_tables')->selectRaw('field_name, field_type, field_comment')->where('table_name', '=', $tableName)->get();
         $structName = Str::studly(Str::singular($tableName));
-        $fileContent = "package tables\n\n";
+        /********************************************************************************************************
+         * [数据库表结构] 实现表单 Config 增删改查等基本操作
+        ********************************************************************************************************/
+        $fileContent = '/********************************************************************************************************'."\n".
+            " * [文档说明] 实现 {$structName} 增删改查等基本操作"."\n".
+            " * [生成时间] ". date('Y-m-d H:i:s') ."+08:00\n".
+            " * [最后修改] ". date('Y-m-d H:i:s') ."+08:00 (警告: 本代码为框架自动生成, 每次生成会自动覆盖, 请不要有任何修改操作)\n".
+            '********************************************************************************************************/'."\n\n";
+        $fileContent .= "package tables\n\n";
         $fileContent .= "import (\n".
             "\t\"gorm.io/gorm\"\n".
             "\t\"common/utils\"\n".
@@ -133,6 +141,15 @@ class GoTableCommand extends HyperfCommand
         $fileContent .= "// Fields 获取所有字段\n";
         $fileContent .= "func (ths *{$structName}) Fields() []string {\n".
             "\t return []string{\n\t\t". implode(",\n\t\t", $fields) . ",\n\t}\n".
+            "}\n\n";
+        // FieldTypes
+        $fileContent .= "// FieldTypes 获取所有字段类型\n";
+        $fileContent .= "func (ths *{$structName}) FieldTypes() map[string]string {\n".
+            "\t return map[string]string{\n\t\t";
+        foreach ($rows as $row) {
+            $fileContent .= '"'. $row->field_name. '": "'. $row->field_type. "\",\n\t\t";
+        }
+        $fileContent .= "\n\t}\n".
             "}\n\n";
         // HasCreated
         $fileContent .= "// HasCreated 是否包含创建时间\n";
