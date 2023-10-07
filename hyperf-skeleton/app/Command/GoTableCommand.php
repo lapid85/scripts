@@ -39,7 +39,7 @@ class GoTableCommand extends HyperfCommand
             case 'tinyint':
             case 'smallint':
             case 'bigint':
-                return 'int';
+                return 'int64';
             case 'float':
             case 'double':
             case 'decimal':
@@ -53,8 +53,27 @@ class GoTableCommand extends HyperfCommand
             case 'date':
             case 'datetime':
             case 'timestamp':
-                return 'time.Time';
+                return 'string';
             default:
+                if (Str::contains($fileType, 'bigint')) {
+                    return 'int64';
+                } else if (Str::contains($fileType, 'float') || Str::contains($fileType, 'double') || Str::contains($fileType, 'decimal')) {
+                    return 'float64';
+                } else if (Str::contains($fileType, 'char') || Str::contains($fileType, 'varchar')) {
+                    return 'string';
+                } else if (Str::contains($fileType, 'text')) {
+                    return 'string';
+                } else if (Str::contains($fileType, 'date')) {
+                    return 'string';
+                } else if (Str::contains($fileType, 'time')) {
+                    return 'string';
+                } else if (Str::contains($fileType, 'enum')) {
+                    return 'string';
+                } else if (Str::contains($fileType, 'set')) {
+                    return 'string';
+                } else if (Str::contains($fileType, 'int')) {
+                    return 'int';
+                }
                 return 'string';
         }
     }
@@ -75,7 +94,7 @@ class GoTableCommand extends HyperfCommand
         if ($fieldName == 'id') {
             return 'ID';
         }
-        return $fieldComment;
+        return str_replace("\n", ' ', trim(str_replace(' ', '', $fieldComment)));
     }
 
     // 转换为 go 的 column
@@ -101,7 +120,7 @@ class GoTableCommand extends HyperfCommand
         $fileContent .= "package tables\n\n";
         $fileContent .= "import (\n".
             "\t\"gorm.io/gorm\"\n".
-            "\t\"common/utils\"\n".
+            "\t\"integrated-common/utils\"\n".
             ")\n\n";
         //"\t\"gorm.io/driver/mysql\"\n". 
         $fileContent .= "// {$structName} 数据表名: {$tableName} \n";
@@ -110,12 +129,19 @@ class GoTableCommand extends HyperfCommand
         $fields = [];
         $hasCreated = false;
         $hasUpdated = false;
+        $infoArr = [];
+
 
         foreach ($rows as $row) {
-            $fileContent .= "\t{$this->goField($row->field_name)} ".
-            "{$this->goType($row->field_type)} ".
-            "`gorm:\"{$this->goColumn($row->field_name)}\" json:\"{$row->field_name}\"`". 
-            "\t// {$this->goComment($row->field_name, $row->field_comment)}\n";
+            $goField = $this->goField($row->field_name);
+            $goType = $this->goType($row->field_type);
+            $goColumn = $this->goColumn($row->field_name); 
+            $goComment = $this->goComment($row->field_name, $row->field_comment);
+            
+            $fileContent .= "\t{$goField} ".
+            "{$goType} ".
+            "`gorm:\"{$goColumn}\" json:\"{$row->field_name}\"`". 
+            "\t// {$goComment} {$row->field_type}\n";
 
             $fields[] = '"'. $row->field_name. '"';
             if ($row->field_name == 'created') {
@@ -124,6 +150,16 @@ class GoTableCommand extends HyperfCommand
             if ($row->field_name == 'updated') {
                 $hasUpdated = true;
             }
+
+            $infoArr[] = (object) [
+                'field_name' => $row->field_name,
+                'field_type' => $row->field_type,
+                'field_comment' => $row->field_comment,
+                'go_field' => $goField,
+                'go_type' => $goType,
+                'go_column' => $goColumn,
+                'go_comment' => $goComment,
+            ];
         }
 
         //$fileContent .= "\tgorm.Model `json:\"-\"`\n";
@@ -131,7 +167,7 @@ class GoTableCommand extends HyperfCommand
 
         $varName = Str::studly(Str::camel($tableName));
         $fileContent .= "// {$varName} Instance\n";
-        $fileContent .= "var {$varName} = {$structName}{}\n\n";
+        $fileContent .= "var {$varName}Ins = {$structName}{}\n\n";
         // TableName
         $fileContent .= "// TableName 获取表名\n";
         $fileContent .= "func (ths *{$structName}) TableName() string {\n".
@@ -192,6 +228,36 @@ class GoTableCommand extends HyperfCommand
             "\t }\n".
             "\t\t return rows, result.RowsAffected, nil\n".
             "}\n\n";
+        // GetAllByxxx
+        foreach ($infoArr as $info) {
+            $method = 'GetAllBy' . $info->go_field;
+            $fileContent .= "// $method 依据条件获取所有记录 参数: 连接对象/条件: {$info->go_type} /限制: [10:limit, 2:page]/排序:'id desc'\n";
+            $fileContent .= "func (ths *{$structName}) $method(db *gorm.DB, val {$info->go_type}, args ...interface{}) (interface{}, int64, error) {\n";
+            $fileContent .= "\t var rows = []{$structName}{}\n".
+                "\t // var count int64 = 0\n".
+                "// 判断是否有限制 如:[limit, page] \n".
+                "\t if len(args) > 0 {\n".
+                "\t\t limiter := args[0].([]int)\n".
+                "\t\t if len(limiter) > 0 {\n".
+                "\t\t\t db = db.Limit(limiter[0])\n".
+                "\t\t\t if len(limiter) > 1 {\n".
+                "\t\t\t\t db = db.Offset(limiter[0] * (limiter[1] - 1))\n".
+                "\t\t\t }\n".
+                "\t\t }\n".
+                "\t }\n".
+                "// 判断是否有排序 如: sort DESC\n".
+                "\t if len(args) > 1 {\n".
+                "\t\t db = db.Order(args[1].(string))\n".
+                "\t } else {\n".
+                "\t\t db = db.Order(\"id DESC\")\n".
+                "\t }\n".
+                "\t result := db.Where(\"{$info->field_name} = ?\", val).Find(&rows)\n".
+                "\t if result.Error != nil {\n".
+                "\t\t return nil, 0, result.Error\n".
+                "\t }\n".
+                "\t\t return rows, result.RowsAffected, nil\n".
+                "}\n\n";
+         }
         // Get
         $fileContent .= "// Get 获取单条记录 参数: 连接对象/条件:map[string]interface{}\n";
         $fileContent .= "func (ths *{$structName}) Get(db *gorm.DB, args ...interface{}) (interface{}, error) {\n".
@@ -211,6 +277,23 @@ class GoTableCommand extends HyperfCommand
             "\t }\n".
             "\t\t return row, nil\n".
             "}\n\n";
+        // GetByxxx
+        foreach ($infoArr as $info) {
+            $method = 'GetBy' . $info->go_field;
+            $fileContent .= "// $method 依据条件获取单条记录 参数: 连接对象/条件: {$info->go_type}\n";
+            $fileContent .= "func (ths *{$structName}) $method(db *gorm.DB, val {$info->go_type}, args ...interface{}) (interface{}, error) {\n";
+            $fileContent .= "\t var row = {$structName}{}\n".
+                "// 判断是否有排序 如: sort DESC\n".
+                "\t if len(args) > 0 {\n".
+                "\t\t db = db.Order(args[0].(string))\n".
+                "\t } \n".
+                "\t result := db.Where(\"{$info->field_name} = ?\", val).First(&row)\n".
+                "\t if result.Error != nil {\n".
+                "\t\t return nil, result.Error\n".
+                "\t }\n".
+                "\t\t return row, nil\n".
+                "}\n\n";
+        }
         // Create
         $fileContent .= "// Create 创建记录 参数: 连接对象/数据:map[string]interface{}\n";
         $fileContent .= "func (ths *{$structName}) Create(db *gorm.DB, data map[string]interface{}) (interface{}, error) {\n".
@@ -257,8 +340,8 @@ class GoTableCommand extends HyperfCommand
             mkdir($savingPath);
         }
 
-        $fileName = $savingPath . '/' . $structName . '.go';
-        echo 'Creating file name: ', $fileName . "\n";
+        $fileName = $savingPath . '/' . $varName . '.go';
+        echo 'Creating file name: ', $varName . "\n";
         file_put_contents($fileName, $fileContent);
         echo 'Formatting file name: ', $fileName . "\n";
         exec('go fmt ' . $fileName);

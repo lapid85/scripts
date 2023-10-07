@@ -33,20 +33,28 @@ class GoModelCommand extends HyperfCommand
 
     // 创建 go  model
     private function createGoModel(string $tableName) {
-        $fileContent = "package models\ntype " . Str::studly(Str::singular($tableName)) . " struct {}\n";
+        $tableStructName = Str::singular($tableName);
+        $structName =  Str::studly(Str::singular($tableName));
+
+        $fileContent = "package models\n ".
+            "import tables \"integrated-tables\" \n\n ".
+            "// ${structName} 表: $tableName \n".
+            "type $structName struct {\n ".
+            "*tables.{$structName} \n ".
+            "} \n";
         // 保存文件
         $savingPath = $this->config->get('go_model_path');
         if (!is_dir($savingPath)) { 
             mkdir($savingPath);
         }
 
-        $structName = Str::studly(Str::singular($tableName));
+        // $structName = Str::studly(Str::singular($tableName));
         $fileName = $savingPath . '/' . $structName . '.go';
         echo 'Creating file name: ', $fileName . "\n";
         file_put_contents($fileName, $fileContent);
         echo 'Formatting file name: ', $fileName . "\n";
         exec('go fmt ' . $fileName);
-    }
+     }
 
     // 执行
     public function handle()
