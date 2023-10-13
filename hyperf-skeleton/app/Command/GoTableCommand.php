@@ -211,6 +211,11 @@ class GoTableCommand extends HyperfCommand
         $fileContent .= "func (ths {$structName}) HasUpdated() bool {\n".
             "\t return ". ($hasUpdated ? 'true' : 'false') . "\n".
             "}\n\n";
+        // Rel
+        $fileContent .= "// Rel 关联关系\n";
+        $fileContent .= "func (ths {$structName}) Rel(db *gorm.DB) *gorm.DB {\n".
+            "\t return db.Model(&${structName}{})\n".
+            "}\n\n";
         // GetAll
         $fileContent .= "// GetAll 获取所有记录 参数: 连接对象/条件:map[string]interface{}/限制: [10:limit, 2:page]/排序:'id desc'\n";
         $fileContent .= "func (ths {$structName}) GetAll(db *gorm.DB, args ...interface{}) (interface{}, int64, error) {\n".
