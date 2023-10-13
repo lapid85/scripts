@@ -35,16 +35,18 @@ class GoModelCommand extends HyperfCommand
     private function createGoModel(string $tableName) {
         $tableStructName = Str::singular($tableName);
         $structName =  Str::studly(Str::singular($tableName));
-        $varName = Str::studly(Str::camel($tableName));
+        $varName = ucfirst(Str::plural(Str::camel($tableName)));
 
         $fileContent = "package models\n ".
-            "import tables \"integrated-tables\" \n\n ".
-            "// ${structName} 表: $tableName -- 严禁直接使用 tables.xxx 方法, 请一律通过 models 来调用 \n".
+            "import \"tables\" \n\n ".
+            "// ${structName} 表: $tableName -- 一般请勿直接使用 tables.xxx 方法, 而是通过 models 来调用 \n".
             "type $structName struct {\n ".
             "*tables.{$structName} \n ".
             "} \n\n".
             "// $varName 对应 {$structName}{}/tables.{$structName}{} - 单例模式/当作静态变量使用 \n".
-            "var {$varName} = &{$structName}{} \n\n";
+            "var {$varName} = &{$structName}{\n ".
+            "{$structName}: &tables.{$structName}{}, \n ".
+            "} \n\n";
         // 保存文件
         $savingPath = $this->config->get('go_model_path');
         if (!is_dir($savingPath)) { 
