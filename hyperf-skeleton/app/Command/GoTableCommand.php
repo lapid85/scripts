@@ -142,7 +142,7 @@ class GoTableCommand extends HyperfCommand
             $goColumn = $this->goColumn($row->field_name); 
             $goComment = $this->goComment($row->field_name, $row->field_comment);
             
-            $fileContent .= "\t{$goField} {$goType} `gorm:\"{$goColumn}\" json:\"{$row->field_name}\"` \t// {$goComment} {$row->field_type}\n";
+            $fileContent .= "\t{$goField} {$goType} `gorm:\"{$goColumn}\" xorm:\"{$row->field_name}\" json:\"{$row->field_name}\"` \t// {$goComment} {$row->field_type}\n";
 
             $fields[] = '"'. $row->field_name. '"';
             if ($row->field_name == 'created') {
@@ -163,14 +163,15 @@ class GoTableCommand extends HyperfCommand
             ];
         }
 
-        $fileContent .= "\t TranslateFields []string `gorm:\"-\" json:\"-\"`\n";
+        $fileContent .= "\t TranslateFields []string `gorm:\"-\" xorm:\"-\" json:\"-\"`\n";
+        $fileContent .= "\t TabName string `gorm:\"-\" xorm:\"-\" json:\"-\"`\n";
 
         //$fileContent .= "\tgorm.Model `json:\"-\"`\n";
         $fileContent .= "}\n\n";
 
         $varName = ucfirst(Str::plural(Str::camel($tableName)));
         $fileContent .= "// {$varName} Instance\n";
-        $fileContent .= "var {$varName} = {$structName}{}\n\n";
+        $fileContent .= "var {$varName} = {$structName}{ TabName: \"$tableName\"}\n\n";
         // TableName
         $fileContent .= "// TableName 获取表名\n";
         $fileContent .= "func (ths {$structName}) TableName() string {\n".
