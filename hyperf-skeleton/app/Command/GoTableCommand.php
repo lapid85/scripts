@@ -116,11 +116,11 @@ class GoTableCommand extends HyperfCommand
         /********************************************************************************************************
          * [数据库表结构] 实现表单 Config 增删改查等基本操作
         ********************************************************************************************************/
-        $fileContent = '/********************************************************************************************************'."\n".
-            " * [文档说明] 实现 {$structName} 增删改查等基本操作"."\n".
-            " * [生成时间] ". date('Y-m-d H:i:s') ."+08:00\n".
-            " * [最后修改] ". date('Y-m-d H:i:s') ."+08:00 (警告: 本代码为框架自动生成, 每次生成会自动覆盖, 请不要有任何修改操作)\n".
-            '********************************************************************************************************/'."\n\n";
+        $fileContent = ''; //'/********************************************************************************************************'."\n".
+            // " * [文档说明] 实现 {$structName} 增删改查等基本操作"."\n".
+            // " * [生成时间] ". date('Y-m-d H:i:s') ."+08:00\n".
+            // " * [最后修改] ". date('Y-m-d H:i:s') ."+08:00 (警告: 本代码为框架自动生成, 每次生成会自动覆盖, 请不要有任何修改操作)\n".
+            // '********************************************************************************************************/'."\n\n";
         $fileContent .= "package models\n\n";
         $fileContent .= "import (\n".
             "\t\"gorm.io/gorm\"\n".
@@ -142,7 +142,8 @@ class GoTableCommand extends HyperfCommand
             $goColumn = $this->goColumn($row->field_name); 
             $goComment = $this->goComment($row->field_name, $row->field_comment);
             
-            $fileContent .= "\t{$goField} {$goType} `gorm:\"{$goColumn}\" xorm:\"{$row->field_name}\" json:\"{$row->field_name}\"` \t// {$goComment} {$row->field_type}\n";
+            $xormField = $row->field_name == 'deleted' ? '-' : $row->field_name;
+            $fileContent .= "\t{$goField} {$goType} `gorm:\"{$goColumn}\" xorm:\"{$xormField}\" json:\"{$row->field_name}\"` \t// {$goComment} {$row->field_type}\n";
 
             $fields[] = '"'. $row->field_name. '"';
             if ($row->field_name == 'created') {
@@ -170,8 +171,12 @@ class GoTableCommand extends HyperfCommand
         $fileContent .= "}\n\n";
 
         $varName = ucfirst(Str::plural(Str::camel($tableName)));
-        $fileContent .= "// {$varName} Instance\n";
-        $fileContent .= "var {$varName} = {$structName}{ TabName: \"$tableName\"}\n\n";
+        $insName = $varName;
+        if ($insName == $structName) {
+            $insName = 'Ins'. $varName;
+        }
+        $fileContent .= "// {$insName} Instance\n";
+        $fileContent .= "var {$insName} = {$structName}{ TabName: \"$tableName\"}\n\n";
         // TableName
         $fileContent .= "// TableName 获取表名\n";
         $fileContent .= "func (ths {$structName}) TableName() string {\n".
@@ -551,6 +556,9 @@ class GoTableCommand extends HyperfCommand
         $fileContent .= "Models = map[string]ITable{\n";
         foreach ($rows as $r)  {
             $varName = ucfirst(Str::plural(Str::camel($r->table_name)));
+            if ($varName == $r->table_name) {
+                $varName = 'Ins'. $varName;
+            }
             $fileContent .= "\t\"{$r->table_name}\": {$varName},\n";
         }
         $fileContent .= "}\n";
